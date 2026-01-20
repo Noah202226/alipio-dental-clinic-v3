@@ -10,7 +10,7 @@ import { Facebook, Instagram } from "lucide-react";
 
 export default function Hero() {
   const { login, register, getCurrentUser, current, loading } = useAuthStore(
-    (state) => state
+    (state) => state,
   );
   const [isSignUp, setIsSignUp] = useState(false);
   const router = useRouter();
@@ -66,7 +66,7 @@ export default function Hero() {
             className="mb-6"
           >
             <Image
-              src="/matira.png" // <-- replace with your actual image
+              src="/alipio-dental-logo.png" // <-- replace with your actual image
               alt="Terrones Dental Clinic Logo"
               width={200}
               height={150}
@@ -83,7 +83,7 @@ export default function Hero() {
           >
             Welcome to <br />
             <span className="text-[var(--theme-color)]">
-              MATIRA DENTAL STUDIO
+              Alipio Dental Clinic
             </span>
           </motion.h1>
 
@@ -105,26 +105,25 @@ export default function Hero() {
             transition={{ delay: 0.8, duration: 0.6 }}
           >
             <p className="font-semibold text-gray-700">
-              📍Unit 5 Gandionco, Bldg. Toting Reyes St., Kalibo, Aklan
+              📍 San Simon, Quezon City, Philippines
             </p>
             <p>🕘 Mondays to Saturdays 8:00am to 5:00pm</p>
-            <p>✉️ matiradentalstudio@gmail.com</p>
+            <p>✉️ sampleEmail@gmail.com</p>
 
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <Instagram size={14} className="text-pink-500" />
               <p>@matiradentalstudio</p>
-            </div>
+            </div> */}
 
             <div className="flex items-center gap-2 justify-start">
               <Facebook
                 size={14}
                 className="text-blue-600 items-center justify-self-start"
               />
-              <p>Matira Dental Studio</p>
+              <p>Alipio Dental Clinic</p>
             </div>
 
-            <p>📞 (036) 262 3207</p>
-            <p>📞 0910 126 4458</p>
+            <p>📞 0916 419 4960</p>
 
             {/* <p>👨‍⚕️ Dr. Daisy Ciprano - Matira</p>
             <p>👨‍⚕️ Dr. Ma. Dexely Matira - Delgado</p> */}
