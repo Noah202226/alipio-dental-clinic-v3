@@ -18,7 +18,7 @@ import SalesSection from "./layout/SalesSection";
 import { usePersonalizationStore } from "../stores/usePersonalizationStore";
 import SchedulingSection from "./layout/ScheduleSections";
 import AppointmentManager from "./layout/Appointments";
-import { ListOrderedIcon } from "lucide-react";
+import { ListChecks, ListOrderedIcon } from "lucide-react";
 
 export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("patients");
@@ -144,7 +144,7 @@ export default function DashboardPage() {
                     document.getElementById("dashboard-drawer").checked = false;
                   }}
                 >
-                  <ListOrderedIcon /> Appointments
+                  <ListChecks /> Appointments
                 </a>
               </li>
             </ul>

@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const { login, register, getCurrentUser, current, loading } = useAuthStore(
-    (state) => state
+    (state) => state,
   );
   const [isSignUp, setIsSignUp] = useState(false);
   const router = useRouter();
@@ -38,15 +38,18 @@ export default function LoginPage() {
       {!loading && (
         <p>{current ? `Hello, ${current.email}` : "Not logged in"}</p>
       )}
-      <div className="min-h-screen flex items-center justify-center bg-base-200 px-4 sm:px-6 lg:px-8">
+      <div className="relative px-4 sm:px-6 lg:px-8 mt-12 md:mt-0">
+        {/* Modern background glow behind form */}
+        <div className="absolute -inset-4 bg-emerald-400/20 blur-3xl rounded-full opacity-50" />
+
         <AnimatePresence mode="wait">
           <motion.div
             key={isSignUp ? "signup" : "login"}
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -30 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="w-full max-w-md"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="relative w-full max-w-md bg-white/80 backdrop-blur-xl p-2 rounded-[2rem] border border-white shadow-2xl"
           >
             <AuthForm
               handleSubmit={isSignUp ? handleRegister : handleLogin}

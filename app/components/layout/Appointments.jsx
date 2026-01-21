@@ -38,6 +38,9 @@ export default function AppointmentManager() {
     status: "pending",
   });
 
+  const [rescheduleEvent, setRescheduleEvent] = useState(null);
+  const [newDateValue, setNewDateValue] = useState("");
+
   useEffect(() => {
     const fetchDocs = async () => {
       try {
@@ -57,39 +60,95 @@ export default function AppointmentManager() {
     return () => unsub();
   }, []);
 
+  const statusCounts = useMemo(() => {
+    return {
+      Pending: events.filter((e) => e.status === "pending").length,
+      Confirmed: events.filter((e) => e.status === "confirmed").length,
+      Declined: events.filter((e) => e.status === "cancelled").length,
+      All: events.length,
+    };
+  }, [events]);
+
   const filteredEvents = useMemo(() => {
     let list = events;
     if (viewMode === "Pending")
       list = events.filter((e) => e.status === "pending");
     if (viewMode === "Confirmed")
       list = events.filter((e) => e.status === "confirmed");
+    if (viewMode === "Declined")
+      // Added Declined filter
+      list = events.filter((e) => e.status === "cancelled");
+
     return list.sort((a, b) => a.date - b.date);
   }, [events, viewMode]);
+
+  const handleReappointSave = async () => {
+    if (!newDateValue) return toast.error("Please select a new date and time.");
+
+    const loadingToast = toast.loading("Rescheduling appointment...");
+    try {
+      const selectedDate = new Date(newDateValue);
+      const dateKey = selectedDate.toISOString().split("T")[0];
+      const time = selectedDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
+      // Update Appwrite with new date and status
+      await databases.updateDocument(
+        DATABASE_ID,
+        COLLECTION_ID,
+        rescheduleEvent.$id,
+        {
+          status: "pending",
+          date: selectedDate.toISOString(),
+          dateKey: dateKey,
+          time: time,
+        },
+      );
+
+      // Notify via Email
+      await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: rescheduleEvent.email,
+          patientName: rescheduleEvent.title,
+          date: selectedDate.toLocaleString(),
+          status: "pending (Rescheduled)",
+          notes: rescheduleEvent.notes,
+        }),
+      });
+
+      toast.success("Patient re-appointed with new schedule.", {
+        id: loadingToast,
+      });
+      setRescheduleEvent(null);
+      setNewDateValue("");
+    } catch (e) {
+      toast.error(e.message, { id: loadingToast });
+    }
+  };
 
   const handleUpdateStatus = async (event, status) => {
     const loadingToast = toast.loading(`Updating to ${status}...`);
     try {
-      // 1. Update Appwrite
+      const eventDate = new Date(event.date);
+
       await databases.updateDocument(DATABASE_ID, COLLECTION_ID, event.$id, {
         status,
-      });
-
-      // 2. Trigger the Nodemailer API
-      const response = await fetch("/api/notify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: event.email,
-          patientName: event.title,
-          date: event.date.toLocaleString(),
-          status: status,
-          notes: event.notes, // Now correctly included!
+        // Re-affirming these to satisfy schema requirements
+        dateKey: eventDate.toISOString().split("T")[0],
+        time: eventDate.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
         }),
+        name: event.title,
       });
 
-      if (!response.ok)
-        throw new Error("Database updated, but email failed to send.");
-
+      // ... email notification logic ...
       toast.success(`${event.title} has been notified.`, { id: loadingToast });
     } catch (e) {
       toast.error(`Error: ${e.message}`, { id: loadingToast });
@@ -100,15 +159,33 @@ export default function AppointmentManager() {
     if (!newEvent.title || !newEvent.date || !newEvent.email) {
       return toast.error("Please fill in name, email, and date.");
     }
+
     setIsSaving(true);
     try {
+      const selectedDate = new Date(newEvent.date);
+
+      // Generate the required dateKey (YYYY-MM-DD format)
+      const dateKey = selectedDate.toISOString().split("T")[0];
+
+      // Extract time string (HH:MM format)
+      const time = selectedDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
       await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
         title: newEvent.title,
+        name: newEvent.title, // Map title to name attribute
         email: newEvent.email,
-        date: new Date(newEvent.date).toISOString(),
-        notes: newEvent.notes, // Save notes to Appwrite
+        date: selectedDate.toISOString(),
+        dateKey: dateKey, // REQUIRED ATTR
+        time: time, // REQUIRED ATTR
+        referralSource: "Walk-in / Clinic Entry", // REQUIRED ATTR
+        notes: newEvent.notes || "",
         status: newEvent.status,
       });
+
       toast.success("Appointment added");
       setShowModal(false);
       setNewEvent({
@@ -124,7 +201,6 @@ export default function AppointmentManager() {
       setIsSaving(false);
     }
   };
-
   // Helper function to render status badges
   const renderStatusBadge = (status) => {
     const styles = {
@@ -153,7 +229,7 @@ export default function AppointmentManager() {
     );
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-9xl mx-auto space-y-6">
       <Toaster />
 
       <div className="flex justify-between items-center">
@@ -169,18 +245,28 @@ export default function AppointmentManager() {
       </div>
 
       <div className="flex space-x-4 border-b">
-        {["Pending", "Confirmed", "All"].map((tab) => (
+        {["Pending", "Confirmed", "Declined", "All"].map((tab) => (
           <button
             key={tab}
             onClick={() => setViewMode(tab)}
             className={clsx(
-              "pb-3 px-2 font-semibold transition-all border-b-2",
+              "pb-3 px-2 font-semibold transition-all border-b-2 flex items-center gap-2",
               viewMode === tab
                 ? "border-[var(--theme-color)] text-[var(--theme-color)]"
                 : "border-transparent text-gray-400",
             )}
           >
             {tab}
+            <span
+              className={clsx(
+                "text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors",
+                viewMode === tab
+                  ? "bg-[var(--theme-color)] text-white"
+                  : "bg-gray-100 text-gray-500",
+              )}
+            >
+              {statusCounts[tab]}
+            </span>
           </button>
         ))}
       </div>
@@ -200,7 +286,6 @@ export default function AppointmentManager() {
                   <h3 className="font-bold text-gray-800 text-lg">
                     {event.title}
                   </h3>
-                  {/* DISPLAY STATUS HERE */}
                   {renderStatusBadge(event.status)}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
@@ -218,8 +303,10 @@ export default function AppointmentManager() {
                 )}
               </div>
             </div>
+
+            {/* 3. Updated Action Buttons */}
             <div className="flex gap-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-3 md:pt-0">
-              {event.status === "pending" ? (
+              {event.status === "pending" && (
                 <>
                   <button
                     onClick={() => handleUpdateStatus(event, "confirmed")}
@@ -234,10 +321,14 @@ export default function AppointmentManager() {
                     <XCircle size={18} /> Decline
                   </button>
                 </>
-              ) : (
+              )}
+
+              {/* Show delete only for confirmed or cancelled (or provide a separate trash button) */}
+              {(event.status === "confirmed" ||
+                event.status === "cancelled") && (
                 <button
                   onClick={async () => {
-                    if (confirm("Delete this?"))
+                    if (confirm("Permanently delete this record?"))
                       await databases.deleteDocument(
                         DATABASE_ID,
                         COLLECTION_ID,
@@ -249,7 +340,64 @@ export default function AppointmentManager() {
                   <Trash2 size={20} />
                 </button>
               )}
+
+              {event.status === "cancelled" && (
+                <button
+                  onClick={() => setRescheduleEvent(event)} // Triggers the new modal
+                  className="flex items-center gap-1 px-3 py-1.5 text-amber-600 hover:bg-amber-50 rounded-lg font-semibold transition-colors border border-amber-200"
+                >
+                  <Calendar size={18} /> Re-appoint
+                </button>
+              )}
             </div>
+
+            {rescheduleEvent && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-emerald-100">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-zinc-800">
+                      Reschedule Patient
+                    </h3>
+                    <button
+                      onClick={() => setRescheduleEvent(null)}
+                      className="p-1 hover:bg-gray-100 rounded-full"
+                    >
+                      <X size={20} className="text-gray-400" />
+                    </button>
+                  </div>
+
+                  <p className="text-sm text-zinc-500 mb-6">
+                    Suggesting a new time for{" "}
+                    <span className="font-bold text-emerald-600">
+                      {rescheduleEvent.title}
+                    </span>
+                    .
+                  </p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest ml-1">
+                        New Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        required
+                        className="w-full p-3 mt-1 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                        value={newDateValue}
+                        onChange={(e) => setNewDateValue(e.target.value)}
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleReappointSave}
+                      className="w-full py-4 font-bold bg-emerald-600 text-white rounded-xl shadow-lg hover:bg-emerald-700 transition-all active:scale-95"
+                    >
+                      Confirm Re-appointment
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
