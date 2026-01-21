@@ -6,6 +6,7 @@ import clsx from "clsx";
 import PersonalizationSettings from "../helper/PersonalizationSettings";
 import ServicesTab from "../helper/ServicesTab";
 import DentistTab from "../helper/DentistTab";
+import ClinicScheduleSettings from "./ClinicScheduleSettings";
 
 export default function SettingsSection() {
   const [clinicName, setClinicName] = useState("NoaArc Dental Clinic");
@@ -20,25 +21,28 @@ export default function SettingsSection() {
       </h1>
       {/* Tabs */}
       <div className="flex space-x-2 border-b border-green-200/50">
-        {["Personalization", "Services", "Dentist"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={clsx(
-              "px-4 py-2 font-semibold rounded-t-md transition",
-              activeTab === tab
-                ? "bg-[var(--theme-color)] text-white"
-                : "text-[var(--theme-color)] hover:bg-green-100"
-            )}
-          >
-            {tab}
-          </button>
-        ))}
+        {["Personalization", "Services", "Dentist", "ClinicSchedule"].map(
+          (tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={clsx(
+                "px-4 py-2 font-semibold rounded-t-md transition",
+                activeTab === tab
+                  ? "bg-[var(--theme-color)] text-white"
+                  : "text-[var(--theme-color)] hover:bg-green-100",
+              )}
+            >
+              {tab}
+            </button>
+          ),
+        )}
       </div>
       {/* Clinic Info */}
       {activeTab === "Personalization" ? <PersonalizationSettings /> : ""}
       {activeTab === "Services" ? <ServicesTab /> : ""}
       {activeTab === "Dentist" ? <DentistTab /> : ""}
+      {activeTab === "ClinicSchedule" ? <ClinicScheduleSettings /> : ""}
     </div>
   );
 }
