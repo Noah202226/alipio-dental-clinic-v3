@@ -44,7 +44,7 @@ export default function Hero() {
         {[
           "General Dentistry",
           "Orthodontics",
-          "Laser Dentistry",
+          "Implant",
           "Oral Surgery",
           "Endodontics",
         ].map((service) => (
